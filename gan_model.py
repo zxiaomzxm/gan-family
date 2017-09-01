@@ -48,7 +48,7 @@ class VanillaGAN(_BaseGAN):
     def generator(self, z, reuse=None):
         with tf.variable_scope('generator', reuse=reuse) as vs:
             p = slim.fully_connected(inputs=z, num_outputs=self.hidden_num, activation_fn=tf.nn.relu)
-            g_data = slim.fully_connected(inputs=p, num_outputs=self.D, activation_fn=tf.nn.sigmoid)
+            g_data = slim.fully_connected(inputs=p, num_outputs=self.D, activation_fn=tf.identity)
             g_var = tf.contrib.framework.get_variables(vs)
         return g_data, g_var
          
@@ -224,8 +224,40 @@ class BIGAN(VanillaGAN):
         self.g_loss += data_mse
         
         
-
-
+class fGAN(LSGAN):
+    def __init__(self, data, hidden_num, z_dim, f_divergence='FKL'):
+        self.f_divergence = f_divergence
+        super(fGAN, self).__init__(data, hidden_num, z_dim)
+        
+    def define_loss(self):
+        D_real = self.d_pos_prob
+        D_fake = self.d_neg_prob
+        if self.f_divergence == 'TV':
+            """ Total Variation """
+            D_loss = -(tf.reduce_mean(0.5 * tf.nn.tanh(D_real)) -
+                    tf.reduce_mean(0.5 * tf.nn.tanh(D_fake)))
+            G_loss = -tf.reduce_mean(0.5 * tf.nn.tanh(D_fake))
+        elif self.f_divergence == 'FKL':
+            """ Forward KL """
+            D_loss = -(tf.reduce_mean(D_real) - tf.reduce_mean(tf.exp(D_fake - 1)))
+            G_loss = -tf.reduce_mean(tf.exp(D_fake - 1))
+        elif self.f_divergence == 'RKL':
+            """ Reverse KL """
+            D_loss = -(tf.reduce_mean(-tf.exp(D_real)) - tf.reduce_mean(-1 - D_fake))
+            G_loss = -tf.reduce_mean(-1 - D_fake)
+        elif self.f_divergence == 'PC':
+            """ Pearson Chi-squared """
+            D_loss = -(tf.reduce_mean(D_real) - tf.reduce_mean(0.25*D_fake**2 + D_fake))
+            G_loss = -tf.reduce_mean(0.25*D_fake**2 + D_fake)
+        elif self.f_divergence == 'SH':
+            """ Squared Hellinger """
+            D_loss = -(tf.reduce_mean(1 - tf.exp(D_real)) -
+                    tf.reduce_mean((1 - tf.exp(D_fake)) / (tf.exp(D_fake))))
+            G_loss = -tf.reduce_mean((1 - tf.exp(D_fake)) / (tf.exp(D_fake)))
+        else:
+            NotImplementedError('Not Implemented.')
+        self.d_loss = D_loss
+        self.g_loss = G_loss
         
         
         

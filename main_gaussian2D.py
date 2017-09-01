@@ -13,12 +13,12 @@ from utils import *
 import seaborn as sb
 from mix_gaussian2D import create_mixgaussian2D
 import os
-os.environ['CUDA_VISIBLE_DEVICES'] = '1'
+os.environ['CUDA_VISIBLE_DEVICES'] = '2'
 
-model_type = 'BEGAN'
+model_type = 'fGAN'
 N = 500
 D = 2
-hidden_num = 32
+hidden_num = 8
 z_dim = 2
 init_learning_rate = 1e-3
 max_iter = 100000
@@ -79,6 +79,11 @@ elif model_type == 'BIGAN':
     model = BIGAN(data, hidden_num=hidden_num, z_dim=z_dim)
     train_op = BaseSolver(model, init_learning_rate=init_learning_rate)
     d_fetches = [train_op.d_solver]
+elif model_type == 'fGAN':
+    K_critic = 1
+    model = fGAN(data, hidden_num=hidden_num, z_dim=z_dim, f_divergence='TV')
+    train_op = BaseSolver(model, init_learning_rate=init_learning_rate)
+    d_fetches = [train_op.d_solver] 
 else:
     raise NotImplementedError('model_type is wrong.')
 
